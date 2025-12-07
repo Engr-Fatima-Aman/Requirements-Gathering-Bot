@@ -137,3 +137,53 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS specific files
+.AppleDouble
+.LSOverride
+._*
+
+# Environment files (sensitive data)
+.env.development.local
+.env.test.local
+
+# Database files (if using local SQLite)
+*.db
+*.sqlite
+*.sqlite3
+
+# Build output
+dist/
+build/
+
+# Exported SRS documents (generated files)
+SRS_*.txt
+SRS_*.pdf
+SRS_*.docx
+
+# Cache directories
+.cache/
+.vite/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Package managers
+package-lock.json (optional - commit this to lock versions)
+yarn.lock
+
+# Temporary files
+tmp/
+temp/
+*.tmp
