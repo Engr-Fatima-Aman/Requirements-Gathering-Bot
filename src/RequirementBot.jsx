@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, AlertCircle, CheckCircle, Plus, Loader } from 'lucide-react';
+import { Send, Plus, Loader } from 'lucide-react';
 
 const RequirementGatheringBot = () => {
   const [projectName, setProjectName] = useState('');
@@ -28,7 +28,7 @@ const RequirementGatheringBot = () => {
     'better', 'worse', 'modern', 'clean', 'nice', 'smooth'
   ];
 
-  // ✅ UPDATE 1: Add Claude API function
+  // ✅ FIX 1: Add API key to headers
   const callClaudeAPI = async (prompt) => {
     const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
     
@@ -42,6 +42,7 @@ const RequirementGatheringBot = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-api-key': apiKey,
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
@@ -82,9 +83,11 @@ const RequirementGatheringBot = () => {
       { a: 'zero latency', b: 'high security' }
     ];
 
-    for (let pair of contradictionPairs) {
+    for (let i = 0; i < contradictionPairs.length; i += 1) {
+      const pair = contradictionPairs[i];
       if ((newLower.includes(pair.a) || newLower.includes(pair.b))) {
-        for (let req of requirements) {
+        for (let j = 0; j < requirements.length; j += 1) {
+          const req = requirements[j];
           const reqLower = req.toLowerCase();
           if ((newLower.includes(pair.a) && reqLower.includes(pair.b)) ||
               (newLower.includes(pair.b) && reqLower.includes(pair.a))) {
@@ -156,7 +159,7 @@ const RequirementGatheringBot = () => {
     ]);
   };
 
-  // ✅ UPDATE 2: Enhanced handleSendMessage with Claude API
+  // ✅ FIX 2: Move requirement addition after validation
   const handleSendMessage = async () => {
     if (!input.trim()) return;
 
@@ -171,11 +174,7 @@ const RequirementGatheringBot = () => {
     setInput('');
     setLoading(true);
 
-    // Add requirement to list
-    setRequirements(prev => [...prev, input]);
-    setRequirementsCount(prev => prev + 1);
-
-    // Check for ambiguities (local check first - faster)
+    // Check for ambiguities BEFORE adding requirement
     const ambiguityTerms = detectAmbiguity(input);
     if (ambiguityTerms) {
       const ambiguity = {
@@ -205,7 +204,7 @@ Can you clarify with specific metrics or examples? For instance:
       return;
     }
 
-    // Check for contradictions (local check first - faster)
+    // Check for contradictions BEFORE adding requirement
     const contradiction = checkContradictions(input);
     if (contradiction) {
       const conflictItem = {
@@ -232,6 +231,10 @@ These conflict with each other. Which takes priority? Please clarify your actual
       setLoading(false);
       return;
     }
+
+    // NOW add requirement to list (after validation)
+    setRequirements(prev => [...prev, input]);
+    setRequirementsCount(prev => prev + 1);
 
     // Normal conversation flow
     let nextState = conversationState;
@@ -265,7 +268,6 @@ These conflict with each other. Which takes priority? Please clarify your actual
     setLoading(false);
   };
 
-  // ✅ UPDATE 3: Enhanced exportSRS function
   const exportSRS = async () => {
     if (requirementsCount === 0) {
       alert('Please add at least one requirement before exporting');
@@ -273,10 +275,6 @@ These conflict with each other. Which takes priority? Please clarify your actual
     }
 
     setLoading(true);
-
-    // Optional: Use Claude to generate professional SRS (comment out if slow)
-    // const srsGenerationPrompt = `Generate a professional IEEE 830-1998 SRS section based on these requirements:\n${requirements.join('\n')}`;
-    // const claudeSRS = await callClaudeAPI(srsGenerationPrompt);
 
     let ieeeSRS = `
 ================================================================================
@@ -337,7 +335,7 @@ identified during requirements elicitation.
 
 2.2 Product Functions
 The system shall perform the following major functions:
-${requirements.slice(0, Math.min(5, requirements.length)).map((req, idx) => `  - ${req}`).join('\n')}
+${requirements.slice(0, Math.min(5, requirements.length)).map((req) => `  - ${req}`).join('\n')}
 ${requirementsCount > 5 ? `  - [${requirementsCount - 5} additional requirements captured below]` : ''}
 
 2.3 User Characteristics
@@ -365,17 +363,19 @@ Users of this system include:
 3.1 FUNCTIONAL REQUIREMENTS
 `;
 
-    // Add functional requirements with IDs
+    // ✅ FIX 3: Truncate long requirements
     let reqCounter = 1;
-    requirements.forEach((req, idx) => {
+    for (let i = 0; i < requirements.length; i += 1) {
+      const req = requirements[i];
+      const truncatedReq = req.length > 80 ? `${req.substring(0, 77)}...` : req;
       ieeeSRS += `
-REQ-${reqCounter.toString().padStart(3, '0')}: ${req.substring(0, 80)}
+REQ-${reqCounter.toString().padStart(3, '0')}: ${truncatedReq}
   Priority: Medium
   Status: Captured
   Description: ${req}
 `;
-      reqCounter++;
-    });
+      reqCounter += 1;
+    }
 
     ieeeSRS += `
 
@@ -408,15 +408,16 @@ REQ-NFR-005: Usability
 No ambiguities detected in captured requirements.
 `;
     } else {
-      ambiguities.forEach((amb, idx) => {
+      for (let i = 0; i < ambiguities.length; i += 1) {
+        const amb = ambiguities[i];
         ieeeSRS += `
-AMBIGUITY-${idx + 1}:
+AMBIGUITY-${i + 1}:
   Requirement: "${amb.requirement}"
   Ambiguous Terms: ${amb.terms.join(', ')}
   Status: ${amb.resolved ? 'RESOLVED' : 'PENDING RESOLUTION'}
   Recommendation: Clarify with stakeholders using specific metrics or examples.
 `;
-      });
+      }
     }
 
     ieeeSRS += `
@@ -429,14 +430,15 @@ AMBIGUITY-${idx + 1}:
 No contradictions detected in captured requirements.
 `;
     } else {
-      contradictions.forEach((cont, idx) => {
+      for (let i = 0; i < contradictions.length; i += 1) {
+        const cont = contradictions[i];
         ieeeSRS += `
-CONTRADICTION-${idx + 1}:
+CONTRADICTION-${i + 1}:
   Conflicting Elements: "${cont.requirement1}" vs "${cont.requirement2}"
   Status: ${cont.resolved ? 'RESOLVED' : 'PENDING RESOLUTION'}
   Recommendation: Prioritize requirements with stakeholders and document decision.
 `;
-      });
+      }
     }
 
     ieeeSRS += `
@@ -529,6 +531,11 @@ System: Requirements Gathering Bot v1.0 (IEEE 830-1998 Compliant)
     setRequirements([]);
     setConversationState('idle');
   };
+
+  // ✅ FIX 4: Add null check for root element
+  if (!document.getElementById('root')) {
+    return null;
+  }
 
   if (!projectCreated) {
     return (
