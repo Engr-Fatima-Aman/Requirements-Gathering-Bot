@@ -278,7 +278,7 @@ These conflict with each other. Which takes priority? Please clarify your actual
     // const srsGenerationPrompt = `Generate a professional IEEE 830-1998 SRS section based on these requirements:\n${requirements.join('\n')}`;
     // const claudeSRS = await callClaudeAPI(srsGenerationPrompt);
 
-    const ieeeSRS = `
+    let ieeeSRS = `
 ================================================================================
                    SOFTWARE REQUIREMENTS SPECIFICATION
                               FOR
